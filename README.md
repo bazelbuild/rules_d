@@ -19,10 +19,11 @@ To use the D rules, add the following to your `WORKSPACE` file to add the
 external repositories for the D toolchain:
 
 ```python
-git_repository(
+http_archive(
     name = "io_bazel_rules_d",
-    remote = "https://github.com/bazelbuild/rules_d.git",
-    tag = "0.0.1",
+    url = "http://bazel-mirror.storage.googleapis.com/github.com/bazelbuild/rules_d/archive/0.0.1.tar.gz",
+    sha256 = "6f83ecd38c94a8ff5a68593b9352d08c2bf618ea8f87917c367681625e2bc04e",
+    strip_prefix = "rules_d-0.0.1",
 )
 load("@io_bazel_rules_d//d:d.bzl", "d_repositories")
 
