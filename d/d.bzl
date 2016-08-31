@@ -499,6 +499,8 @@ filegroup(
     srcs = glob([
         "dmd2/src/druntime/import/*.*",
         "dmd2/src/druntime/import/**/*.*",
+        "dmd2/src/druntime/src/*.*",
+        "dmd2/src/druntime/src/**/*.*",
     ]),
 )
 """
