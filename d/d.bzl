@@ -47,6 +47,14 @@ def _create_setup_cmd(lib, deps_dir):
       deps_dir + "/" + lib.basename + "\n"
   )
 
+def _files_directory(files):
+  """Returns the shortest parent directory of a list of files."""
+  dir = files[0].dirname
+  for f in files:
+    if len(dir) > len(f.dirname):
+      dir = f.dirname
+  return dir
+
 def _d_toolchain(ctx):
   """Returns a struct containing info about the D toolchain.
 
@@ -58,7 +66,7 @@ def _d_toolchain(ctx):
       d_compiler_path: The path to the D compiler.
       link_flags: Linker (-L) flags for adding the standard library to the
           library search paths.
-      import_flags: import (-L) flags for adding the standard library sources
+      import_flags: import (-I) flags for adding the standard library sources
           to the import paths.
   """
 
@@ -67,8 +75,8 @@ def _d_toolchain(ctx):
       d_compiler_path = d_compiler_path,
       link_flags = ["-L-L" + ctx.files._d_stdlib[0].dirname],
       import_flags = [
-          "-I" + ctx.files._d_stdlib_src[0].dirname,
-          "-I" + ctx.files._d_runtime_import_src[0].dirname])
+          "-I" + _files_directory(ctx.files._d_stdlib_src),
+          "-I" + _files_directory(ctx.files._d_runtime_import_src)])
 
 def _format_version(name):
   """Formats the string name to be used in a --version flag."""
