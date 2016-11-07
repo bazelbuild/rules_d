@@ -415,6 +415,7 @@ _d_compile_attrs = {
         default = Label("//d:dmd"),
         executable = True,
         single_file = True,
+        cfg = "host",
     ),
     "_d_stdlib": attr.label(
         default = Label("//d:libphobos2"),
