@@ -148,14 +148,14 @@ def _setup_deps(deps, name, working_dir):
   deps_dir = working_dir + "/" + name + ".deps"
   setup_cmd = ["rm -rf " + deps_dir + ";" + "mkdir -p " + deps_dir + ";"]
 
-  libs = set()
-  transitive_libs = set()
-  d_srcs = set()
-  transitive_d_srcs = set()
-  versions = set()
-  imports = set()
-  link_flags = set()
-  symlinked_libs = set()
+  libs = depset()
+  transitive_libs = depset()
+  d_srcs = depset()
+  transitive_d_srcs = depset()
+  versions = depset()
+  imports = depset()
+  link_flags = depset()
+  symlinked_libs = depset()
   for dep in deps:
     if hasattr(dep, "d_lib"):
       # The dependency is a d_library.
@@ -237,7 +237,7 @@ def _d_library_impl(ctx):
              use_default_shell_env = True,
              progress_message = "Compiling D library " + ctx.label.name)
 
-  return struct(files = set([d_lib]),
+  return struct(files = depset([d_lib]),
                 d_srcs = ctx.files.srcs,
                 transitive_d_srcs = depinfo.d_srcs,
                 transitive_libs = depinfo.transitive_libs,
@@ -312,11 +312,11 @@ def _d_test_impl(ctx):
 
 def _d_source_library_impl(ctx):
   """Implementation of the d_source_library rule."""
-  transitive_d_srcs = set(order="compile")
-  transitive_libs = set()
-  transitive_imports = set()
-  transitive_linkopts = set()
-  transitive_versions = set()
+  transitive_d_srcs = depset(order="postorder")
+  transitive_libs = depset()
+  transitive_imports = depset()
+  transitive_linkopts = depset()
+  transitive_versions = depset()
   for dep in ctx.attr.deps:
     if hasattr(dep, "d_srcs"):
       # Dependency is another d_source_library target.
