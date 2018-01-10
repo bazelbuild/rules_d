@@ -144,7 +144,7 @@ The library `foo` is built using a `d_library` target:
 ```python
 load("@io_bazel_rules_d//d/d", "d_library")
 
-d_binary(
+d_library(
     name = "foo",
     srcs = [
         "foo.d",
