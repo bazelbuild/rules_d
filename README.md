@@ -142,7 +142,7 @@ The library `foo` is built using a `d_library` target:
 `foo/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_library")
+load("@io_bazel_rules_d//d:d.bzl", "d_library")
 
 d_library(
     name = "foo",
@@ -269,7 +269,7 @@ Build the C library using the `cc_library` rule and then use the
 `greeter/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_source_library")
+load("@io_bazel_rules_d//d:d.bzl", "d_source_library")
 
 cc_library(
     name = "native_greeter_lib",
@@ -290,7 +290,7 @@ the C library:
 `hello_world/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_source_library")
+load("@io_bazel_rules_d//d:d.bzl", "d_source_library")
 
 d_binary(
     name = "hello_world",
@@ -407,7 +407,7 @@ The `hello_lib` library is built using a `d_library` target:
 `hello_lib/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_library")
+load("@io_bazel_rules_d//d:d.bzl", "d_library")
 
 d_library(
     name = "hello_lib",
@@ -431,7 +431,7 @@ The `hello_world` binary is built using a `d_binary` target:
 `hello_world/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_library")
+load("@io_bazel_rules_d//d:d.bzl", "d_library")
 
 d_binary(
     name = "hello_world",
@@ -580,7 +580,7 @@ To build the library and unit test:
 `hello_lib/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_library", "d_test")
+load("@io_bazel_rules_d//d:d.bzl", "d_library", "d_test")
 
 d_library(
     name = "greeter",
@@ -661,7 +661,7 @@ that takes the `d_library` `foo` as its dependency:
 `foo/BUILD`:
 
 ```python
-load("@io_bazel_rules_d//d/d", "d_library", "d_docs")
+load("@io_bazel_rules_d//d:d.bzl", "d_library", "d_docs")
 
 d_library(
     name = "foo",
