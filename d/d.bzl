@@ -460,7 +460,7 @@ _d_docs_attrs = {
 
 d_docs = rule(
     _d_docs_impl,
-    attrs = dict(_d_common_attrs.items() + _d_compile_attrs.items()),
+    attrs = dict(_d_docs_attrs.items() + _d_compile_attrs.items()),
     outputs = {
         "d_docs": "%{name}-docs.zip",
     },
