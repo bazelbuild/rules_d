@@ -14,6 +14,8 @@
 
 """D rules for Bazel."""
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 A_FILETYPE = FileType([".a"])
 
 D_FILETYPE = FileType([
@@ -513,22 +515,20 @@ filegroup(
 """
 
 def d_repositories():
-  native.new_http_archive(
+  http_archive(
       name = "dmd_linux_x86_64",
       urls = [
-          "http://bazel-mirror.storage.googleapis.com/downloads.dlang.org/releases/2.x/2.070.0/dmd.2.070.0.linux.tar.xz",
-          "http://downloads.dlang.org/releases/2.x/2.070.0/dmd.2.070.0.linux.tar.xz",
+          "http://downloads.dlang.org/releases/2.x/2.083.1/dmd.2.083.1.linux.tar.xz",
       ],
-      sha256 = "42f48db8716f523076e881151f631e741342012881ec9b57353544ed46c4f774",
+      sha256 = "33245ed0330aced2bdf5fe58b0dc1487c8417bd3192e584080d93282fe879afe",
       build_file_content = DMD_BUILD_FILE,
   )
 
-  native.new_http_archive(
+  http_archive(
       name = "dmd_darwin_x86_64",
       urls = [
-          "http://bazel-mirror.storage.googleapis.com/downloads.dlang.org/releases/2.x/2.070.0/dmd.2.070.0.osx.tar.xz",
-          "http://downloads.dlang.org/releases/2.x/2.070.0/dmd.2.070.0.osx.tar.xz",
+          "http://downloads.dlang.org/releases/2.x/2.083.1/dmd.2.083.1.osx.tar.xz",
       ],
-      sha256 = "c1dd14ded8e099dcb2f136379013959b07790249f440010d556e67ff59fe44a0",
+      sha256 = "c7d947a86dea08a52ef611d30e8692e1321942f65967fd760305ba64bb0f4035",
       build_file_content = DMD_BUILD_FILE,
   )
