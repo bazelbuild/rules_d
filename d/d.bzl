@@ -231,7 +231,6 @@ def _d_library_impl(ctx):
         depinfo.transitive_d_srcs +
         depinfo.libs +
         depinfo.transitive_libs +
-        [ctx.file._d_compiler] +
         ctx.files._d_stdlib +
         ctx.files._d_stdlib_src +
         ctx.files._d_runtime_import_src
@@ -239,6 +238,7 @@ def _d_library_impl(ctx):
 
     ctx.actions.run_shell(
         inputs = compile_inputs,
+        tools = [ctx.file._d_compiler],
         outputs = [d_lib],
         mnemonic = "Dcompile",
         command = cmd,
@@ -273,7 +273,6 @@ def _d_binary_impl_common(ctx, extra_flags = []):
     )
 
     toolchain_files = (
-        [ctx.file._d_compiler] +
         ctx.files._d_stdlib +
         ctx.files._d_stdlib_src +
         ctx.files._d_runtime_import_src
@@ -285,6 +284,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
                       toolchain_files)
     ctx.actions.run_shell(
         inputs = compile_inputs,
+        tools = [ctx.file._d_compiler],
         outputs = [d_obj],
         mnemonic = "Dcompile",
         command = compile_cmd,
@@ -309,6 +309,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
 
     ctx.actions.run_shell(
         inputs = link_inputs,
+        tools = [ctx.file._d_compiler],
         outputs = [d_bin],
         mnemonic = "Dlink",
         command = link_cmd,
@@ -414,7 +415,6 @@ def _d_docs_impl(ctx):
     )
 
     toolchain_files = (
-        [ctx.file._d_compiler] +
         ctx.files._d_stdlib +
         ctx.files._d_stdlib_src +
         ctx.files._d_runtime_import_src
@@ -422,6 +422,7 @@ def _d_docs_impl(ctx):
     ddoc_inputs = target.srcs + target.transitive_srcs + toolchain_files
     ctx.actions.run_shell(
         inputs = ddoc_inputs,
+        tools = [ctx.file._d_compiler],
         outputs = [d_docs_zip],
         mnemonic = "Ddoc",
         command = " ".join(doc_cmd),
