@@ -16,12 +16,10 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-A_FILETYPE = FileType([".a"])
+def a_filetype(files):
+    return [f for f in files if f.basename.endswith(".a")]
 
-D_FILETYPE = FileType([
-    ".d",
-    ".di",
-])
+D_FILETYPE = [".d", ".di"]
 
 ZIP_PATH = "/usr/bin/zip"
 
@@ -186,7 +184,7 @@ def _setup_deps(deps, name, working_dir):
 
         elif hasattr(dep, "cc"):
             # The dependency is a cc_library
-            native_libs = A_FILETYPE.filter(dep.cc.libs)
+            native_libs = a_filetype(dep.cc.libs)
             libs += native_libs
             transitive_libs += native_libs
             symlinked_libs += native_libs
@@ -349,7 +347,7 @@ def _d_source_library_impl(ctx):
 
         elif hasattr(dep, "cc"):
             # Dependency is a cc_library target.
-            native_libs = A_FILETYPE.filter(dep.cc.libs)
+            native_libs = a_filetype(dep.cc.libs)
             transitive_libs += native_libs
             transitive_linkopts += ["-l%s" % dep.label.name]
 
