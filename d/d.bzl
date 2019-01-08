@@ -196,18 +196,18 @@ def _setup_deps(deps, name, working_dir):
             fail("D targets can only depend on d_library, d_source_library, or " +
                  "cc_library targets.", "deps")
 
-    for symlinked_libs in symlinked_libs:
+    for symlinked_libs in symlinked_libs.to_list():
         setup_cmd += [_create_setup_cmd(symlinked_libs, deps_dir)]
 
     return struct(
-        libs = list(libs),
-        transitive_libs = list(transitive_libs),
-        d_srcs = list(d_srcs),
-        transitive_d_srcs = list(transitive_d_srcs),
+        libs = libs.to_list(),
+        transitive_libs = transitive_libs.to_list(),
+        d_srcs = d_srcs.to_list(),
+        transitive_d_srcs = transitive_d_srcs.to_list(),
         versions = versions,
         setup_cmd = setup_cmd,
-        imports = list(imports),
-        link_flags = list(link_flags),
+        imports = imports.to_list(),
+        link_flags = link_flags.to_list(),
         lib_flags = ["-L-L%s" % deps_dir],
     )
 
@@ -239,7 +239,7 @@ def _d_library_impl(ctx):
         ctx.files._d_runtime_import_src
     )
 
-    ctx.action(
+    ctx.actions.run_shell(
         inputs = compile_inputs,
         outputs = [d_lib],
         mnemonic = "Dcompile",
@@ -262,10 +262,7 @@ def _d_library_impl(ctx):
 def _d_binary_impl_common(ctx, extra_flags = []):
     """Common implementation for rules that build a D binary."""
     d_bin = ctx.outputs.executable
-    d_obj = ctx.new_file(
-        ctx.configuration.bin_dir,
-        d_bin.basename + ".o",
-    )
+    d_obj = ctx.actions.declare_file(d_bin.basename + ".o")
     depinfo = _setup_deps(ctx.attr.deps, ctx.label.name, d_bin.dirname)
 
     # Build compile command
@@ -288,7 +285,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
                       depinfo.d_srcs +
                       depinfo.transitive_d_srcs +
                       toolchain_files)
-    ctx.action(
+    ctx.actions.run_shell(
         inputs = compile_inputs,
         outputs = [d_obj],
         mnemonic = "Dcompile",
@@ -312,7 +309,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         toolchain_files
     )
 
-    ctx.action(
+    ctx.actions.run_shell(
         inputs = link_inputs,
         outputs = [d_bin],
         mnemonic = "Dlink",
@@ -362,11 +359,11 @@ def _d_source_library_impl(ctx):
 
     return struct(
         d_srcs = ctx.files.srcs,
-        transitive_d_srcs = list(transitive_d_srcs),
+        transitive_d_srcs = transitive_d_srcs.to_list(),
         transitive_libs = transitive_libs,
-        imports = ctx.attr.imports + list(transitive_imports),
-        linkopts = ctx.attr.linkopts + list(transitive_linkopts),
-        versions = ctx.attr.versions + list(transitive_versions),
+        imports = ctx.attr.imports + transitive_imports.to_list(),
+        linkopts = ctx.attr.linkopts + transitive_linkopts.to_list(),
+        versions = ctx.attr.versions + transitive_versions.to_list(),
     )
 
 # TODO(dzc): Use ddox for generating HTML documentation.
@@ -425,7 +422,7 @@ def _d_docs_impl(ctx):
         ctx.files._d_runtime_import_src
     )
     ddoc_inputs = target.srcs + target.transitive_srcs + toolchain_files
-    ctx.action(
+    ctx.actions.run_shell(
         inputs = ddoc_inputs,
         outputs = [d_docs_zip],
         mnemonic = "Ddoc",
@@ -436,27 +433,27 @@ def _d_docs_impl(ctx):
 
 _d_common_attrs = {
     "srcs": attr.label_list(allow_files = D_FILETYPE),
-    "deps": attr.label_list(),
     "imports": attr.string_list(),
     "linkopts": attr.string_list(),
     "versions": attr.string_list(),
+    "deps": attr.label_list(),
 }
 
 _d_compile_attrs = {
     "_d_compiler": attr.label(
         default = Label("//d:dmd"),
         executable = True,
-        single_file = True,
+        allow_single_file = True,
         cfg = "host",
+    ),
+    "_d_runtime_import_src": attr.label(
+        default = Label("//d:druntime-import-src"),
     ),
     "_d_stdlib": attr.label(
         default = Label("//d:libphobos2"),
     ),
     "_d_stdlib_src": attr.label(
         default = Label("//d:phobos-src"),
-    ),
-    "_d_runtime_import_src": attr.label(
-        default = Label("//d:druntime-import-src"),
     ),
 }
 
