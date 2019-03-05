@@ -184,7 +184,7 @@ def _setup_deps(deps, name, working_dir):
 
         elif hasattr(dep, "cc"):
             # The dependency is a cc_library
-            native_libs = a_filetype(dep.cc.libs.to_list())
+            native_libs = a_filetype(_get_libs_for_static_executable(dep))
             libs += native_libs
             transitive_libs.append(depset(native_libs))
             symlinked_libs += native_libs
@@ -331,6 +331,28 @@ def _d_test_impl(ctx):
     """Implementation of the d_test rule."""
     return _d_binary_impl_common(ctx, extra_flags = ["-unittest"])
 
+def _get_libs_for_static_executable(dep):
+    """
+    Finds the libraries used for linking an executable statically.
+    This replaces the old API dep.cc.libs
+    Args:
+      dep: Target
+    Returns:
+      A list of File instances, these are the libraries used for linking.
+    """
+    libraries_to_link = dep[CcInfo].linking_context.libraries_to_link
+    libs = []
+    for library_to_link in libraries_to_link:
+        if library_to_link.static_library != None:
+            libs.append(library_to_link.static_library)
+        elif library_to_link.pic_static_library != None:
+            libs.append(library_to_link.pic_static_library)
+        elif library_to_link.interface_library != None:
+            libs.append(library_to_link.interface_library)
+        elif library_to_link.dynamic_library != None:
+            libs.append(library_to_link.dynamic_library)
+    return libs
+
 def _d_source_library_impl(ctx):
     """Implementation of the d_source_library rule."""
     transitive_d_srcs = []
@@ -346,9 +368,9 @@ def _d_source_library_impl(ctx):
             transitive_linkopts = depset(dep.linkopts, transitive = [transitive_linkopts])
             transitive_versions = depset(dep.versions, transitive = [transitive_versions])
 
-        elif hasattr(dep, "cc"):
+        elif CcInfo in dep:
             # Dependency is a cc_library target.
-            native_libs = a_filetype(dep.cc.libs.to_list())
+            native_libs = a_filetype(_get_libs_for_static_executable(dep))
             transitive_libs = depset(native_libs, transitive = transitive_libs)
             transitive_linkopts = depset(["-l%s" % dep.label.name], transitive = [transitive_linkopts])
 
