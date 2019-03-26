@@ -13,7 +13,6 @@ this repository and becoming a maintainer.
 ## Rules
 
 <div class="toc">
-  <h2>Rules</h2>
   <ul>
     <li><a href="#d_library">d_library</a></li>
     <li><a href="#d_source_library">d_source_library</a></li>
