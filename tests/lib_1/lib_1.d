@@ -1,4 +1,4 @@
-module lib_1.lib_1_func;
+module lib_1;
 
 int lib_1_func(uint x)
 {
