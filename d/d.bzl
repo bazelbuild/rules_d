@@ -182,7 +182,7 @@ def _setup_deps(deps, name, working_dir):
             imports = depset(["%s/%s" % (dep.label.package, im) for im in dep.imports], transitive = [imports])
             versions += dep.versions
 
-        elif hasattr(dep, "cc"):
+        elif CcInfo in dep or hasattr(dep, "cc"):
             # The dependency is a cc_library
             native_libs = a_filetype(_get_libs_for_static_executable(dep))
             libs += native_libs

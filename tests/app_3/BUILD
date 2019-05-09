@@ -4,5 +4,5 @@ d_test(
     name = "app_3",
     srcs = ["app_3.d"],
     deps = ["//tests/lib_1"],
-    imports = ["//tests/lib_1"],
+    imports = ["../lib_1"],
 )
