@@ -1,6 +1,7 @@
-import std.stdio;
 import core.thread;
-import std.datetime;
+//import std.datetime;
+import std.datetime.stopwatch;
+import std.stdio;
 
 // Yield count should be larger for a 
 // more accurate measurment, but this
@@ -51,7 +52,7 @@ void fiber_test()
     sw.stop();
 
     writeln("Elapsed time for ", worker_count, " workers times ", yield_count,
-            " yield() calls with fibers = ", sw.peek().msecs, "ms");
+            " yield() calls with fibers = ", sw.peek.total!"msecs", "ms");
 }
 
 void thread_test()
@@ -68,7 +69,7 @@ void thread_test()
     thread_joinAll();
     sw.stop();
     writeln("Elapsed time for ", worker_count, " workers times ", yield_count,
-            " yield() calls with threads = ", sw.peek().msecs, "ms");
+            " yield() calls with threads = ", sw.peek.total!"msecs", "ms");
 }
 
 int main()
