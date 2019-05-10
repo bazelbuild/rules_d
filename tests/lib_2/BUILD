@@ -9,5 +9,5 @@ cc_library(
 
 d_source_library(
     name = "lib_2_d_import",
-    srcs = ["lib_2_import.d"],
+    srcs = ["lib_2_import.di"],
 )
