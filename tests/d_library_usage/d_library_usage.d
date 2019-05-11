@@ -1,9 +1,9 @@
 int main()
 {
-    import lib_1 : lib_1_func;
+    import simple_library : plusOne;
 
     int x = 1;
-    int y = lib_1_func(x);
+    int y = plusOne(x);
     assert(y == x + 1);
 
     return 0;
