@@ -1,41 +1,40 @@
-import core.thread;
-//import std.datetime;
-import std.datetime.stopwatch;
-import std.stdio;
-
-// Yield count should be larger for a 
-// more accurate measurment, but this
-// is just a unit tests, so don't spin
-// for long
 immutable uint yield_count = 1000;
 immutable uint worker_count = 10;
 
 void fiber_func()
 {
+    import core.thread : Fiber;
+
     uint i = yield_count;
+
     while (--i)
         Fiber.yield();
 }
 
 void thread_func()
 {
+    import core.thread : Thread;
+
     uint i = yield_count;
+
     while (--i)
         Thread.yield();
 }
 
 void fiber_test()
 {
+    import core.thread : Fiber;
+    import std.datetime.stopwatch : StopWatch;
+    import std.stdio : writeln;
+
     Fiber[worker_count] fib_array;
 
     foreach (ref f; fib_array)
         f = new Fiber(&fiber_func);
 
+    uint i = yield_count;
     StopWatch sw;
 
-    uint i = yield_count;
-
-    // fibers are cooperative and need a driver loop
     sw.start();
     bool done;
     do
@@ -57,6 +56,10 @@ void fiber_test()
 
 void thread_test()
 {
+    import core.thread : Thread, thread_joinAll;
+    import std.datetime.stopwatch : StopWatch;
+    import std.stdio : writeln;
+
     Thread[worker_count] thread_array;
 
     foreach (ref t; thread_array)
@@ -68,6 +71,7 @@ void thread_test()
         t.start();
     thread_joinAll();
     sw.stop();
+
     writeln("Elapsed time for ", worker_count, " workers times ", yield_count,
             " yield() calls with threads = ", sw.peek.total!"msecs", "ms");
 }
@@ -76,5 +80,6 @@ int main()
 {
     fiber_test();
     thread_test();
+
     return 0;
 }

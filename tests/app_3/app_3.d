@@ -1,4 +1,3 @@
-
 int main()
 {
     import lib_1 : lib_1_func;
