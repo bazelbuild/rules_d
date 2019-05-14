@@ -185,9 +185,9 @@ def _setup_deps(deps, name, working_dir):
         elif CcInfo in dep or hasattr(dep, "cc"):
             # The dependency is a cc_library
             native_libs = a_filetype(_get_libs_for_static_executable(dep))
-            libs += native_libs
+            libs = depset(native_libs, transitive = [libs])
             transitive_libs.append(depset(native_libs))
-            symlinked_libs += native_libs
+            symlinked_libs = depset(native_libs, transitive = [symlinked_libs])
             link_flags = depset(["-L-l%s" % dep.label.name], transitive = [link_flags])
 
         else:
