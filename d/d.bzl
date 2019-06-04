@@ -341,6 +341,12 @@ def _get_libs_for_static_executable(dep):
       A list of File instances, these are the libraries used for linking.
     """
     libraries_to_link = dep[CcInfo].linking_context.libraries_to_link
+
+    # For compatibility with both Bazel 0.26 and Bazel 0.27
+    # (https://github.com/bazelbuild/bazel/issues/8118)
+    if hasattr(libraries_to_link, "to_list"):
+        libraries_to_link = libraries_to_link.to_list()
+
     libs = []
     for library_to_link in libraries_to_link:
         if library_to_link.static_library != None:
