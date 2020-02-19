@@ -152,60 +152,61 @@ def _setup_deps(deps, name, working_dir):
     deps_dir = working_dir + "/" + name + ".deps"
     setup_cmd = ["rm -rf " + deps_dir + ";" + "mkdir -p " + deps_dir + ";"]
 
-    libs = depset()
+    libs = []
     transitive_libs = []
-    d_srcs = depset()
+    d_srcs = []
     transitive_d_srcs = []
     versions = []
-    imports = depset()
-    link_flags = depset()
-    symlinked_libs = depset()
+    imports = []
+    link_flags = []
+    symlinked_libs = []
     for dep in deps:
         if hasattr(dep, "d_lib"):
             # The dependency is a d_library.
-            libs = depset([dep.d_lib], transitive = [libs])
+            libs.append(dep.d_lib)
             transitive_libs.append(dep.transitive_libs)
-            symlinked_libs = depset([dep.d_lib], transitive = [dep.transitive_libs, symlinked_libs])
-            d_srcs = depset(dep.d_srcs, transitive = [d_srcs])
+            symlinked_libs.append(depset([dep.d_lib], transitive = [dep.transitive_libs]))
+            d_srcs += dep.d_srcs
             transitive_d_srcs.append(dep.transitive_d_srcs)
             versions += dep.versions + ["Have_%s" % _format_version(dep.label.name)]
-            link_flags = depset(["-L-l%s" % dep.label.name] + dep.link_flags, transitive = [link_flags])
-            imports = depset(["%s/%s" % (dep.label.package, im) for im in dep.imports], transitive = [imports])
+            link_flags += ["-L-l%s" % dep.label.name] + dep.link_flags
+            imports += ["%s/%s" % (dep.label.package, im) for im in dep.imports]
 
         elif hasattr(dep, "d_srcs"):
             # The dependency is a d_source_library.
-            d_srcs = depset(dep.d_srcs, transitive = [d_srcs])
+            d_srcs += dep.d_srcs
             transitive_d_srcs.append(dep.transitive_d_srcs)
             transitive_libs.append(dep.transitive_libs)
-            symlinked_libs = depset(transitive = [dep.transitive_libs, symlinked_libs])
-            link_flags = depset(["-L%s" % linkopt for linkopt in dep.linkopts], transitive = [link_flags])
-            imports = depset(["%s/%s" % (dep.label.package, im) for im in dep.imports], transitive = [imports])
+            symlinked_libs.append(dep.transitive_libs)
+            link_flags += ["-L%s" % linkopt for linkopt in dep.linkopts]
+            imports += ["%s/%s" % (dep.label.package, im) for im in dep.imports]
             versions += dep.versions
 
         elif CcInfo in dep:
             # The dependency is a cc_library
             native_libs = a_filetype(_get_libs_for_static_executable(dep))
-            libs = depset(native_libs, transitive = [libs])
+            libs.extend(native_libs)
             transitive_libs.append(depset(native_libs))
-            symlinked_libs = depset(native_libs, transitive = [symlinked_libs])
-            link_flags = depset(["-L-l%s" % dep.label.name], transitive = [link_flags])
+            symlinked_libs.append(depset(native_libs))
+            link_flags += ["-L-l%s" % dep.label.name]
 
         else:
             fail("D targets can only depend on d_library, d_source_library, or " +
                  "cc_library targets.", "deps")
 
+    symlinked_libs = depset(transitive = symlinked_libs)
     for symlinked_libs in symlinked_libs.to_list():
         setup_cmd += [_create_setup_cmd(symlinked_libs, deps_dir)]
 
     return struct(
-        libs = libs,
+        libs = depset(libs),
         transitive_libs = depset(transitive = transitive_libs),
-        d_srcs = d_srcs.to_list(),
+        d_srcs = depset(d_srcs).to_list(),
         transitive_d_srcs = depset(transitive = transitive_d_srcs),
         versions = versions,
         setup_cmd = setup_cmd,
-        imports = imports.to_list(),
-        link_flags = link_flags.to_list(),
+        imports = depset(imports).to_list(),
+        link_flags = depset(link_flags).to_list(),
         lib_flags = ["-L-L%s" % deps_dir],
     )
 
@@ -225,15 +226,17 @@ def _d_library_impl(ctx):
         extra_flags = ["-lib"],
     )
 
-    compile_inputs = (
+    compile_inputs = depset(
         ctx.files.srcs +
         depinfo.d_srcs +
-        depinfo.transitive_d_srcs.to_list() +
-        depinfo.libs.to_list() +
-        depinfo.transitive_libs.to_list() +
         ctx.files._d_stdlib +
         ctx.files._d_stdlib_src +
-        ctx.files._d_runtime_import_src
+        ctx.files._d_runtime_import_src,
+        transitive = [
+            depinfo.transitive_d_srcs,
+            depinfo.libs,
+            depinfo.transitive_libs,
+        ],
     )
 
     ctx.actions.run_shell(
@@ -278,10 +281,10 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         ctx.files._d_runtime_import_src
     )
 
-    compile_inputs = (ctx.files.srcs +
-                      depinfo.d_srcs +
-                      depinfo.transitive_d_srcs.to_list() +
-                      toolchain_files)
+    compile_inputs = depset(
+        ctx.files.srcs + depinfo.d_srcs + toolchain_files,
+        transitive = [depinfo.transitive_d_srcs],
+    )
     ctx.actions.run_shell(
         inputs = compile_inputs,
         tools = [ctx.file._d_compiler],
@@ -300,11 +303,9 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         out = d_bin,
     )
 
-    link_inputs = (
-        [d_obj] +
-        depinfo.libs.to_list() +
-        depinfo.transitive_libs.to_list() +
-        toolchain_files
+    link_inputs = depset(
+        [d_obj] + toolchain_files,
+        transitive = [depinfo.libs, depinfo.transitive_libs],
     )
 
     ctx.actions.run_shell(
@@ -340,12 +341,7 @@ def _get_libs_for_static_executable(dep):
     Returns:
       A list of File instances, these are the libraries used for linking.
     """
-    libraries_to_link = dep[CcInfo].linking_context.libraries_to_link
-
-    # For compatibility with both Bazel 0.26 and Bazel 0.27
-    # (https://github.com/bazelbuild/bazel/issues/8118)
-    if hasattr(libraries_to_link, "to_list"):
-        libraries_to_link = libraries_to_link.to_list()
+    libraries_to_link = dep[CcInfo].linking_context.libraries_to_link.to_list()
 
     libs = []
     for library_to_link in libraries_to_link:
@@ -377,7 +373,7 @@ def _d_source_library_impl(ctx):
         elif CcInfo in dep:
             # Dependency is a cc_library target.
             native_libs = a_filetype(_get_libs_for_static_executable(dep))
-            transitive_libs = depset(native_libs, transitive = transitive_libs)
+            transitive_libs.extend(native_libs)
             transitive_linkopts = depset(["-l%s" % dep.label.name], transitive = [transitive_linkopts])
 
         else:
@@ -447,7 +443,7 @@ def _d_docs_impl(ctx):
         ctx.files._d_stdlib_src +
         ctx.files._d_runtime_import_src
     )
-    ddoc_inputs = target.srcs + target.transitive_srcs.to_list() + toolchain_files
+    ddoc_inputs = depset(target.srcs + toolchain_files, transitive = [target.transitive_srcs])
     ctx.actions.run_shell(
         inputs = ddoc_inputs,
         tools = [ctx.file._d_compiler],
