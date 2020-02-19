@@ -194,9 +194,10 @@ def _setup_deps(deps, name, working_dir):
             fail("D targets can only depend on d_library, d_source_library, or " +
                  "cc_library targets.", "deps")
 
-    symlinked_libs = depset(transitive = symlinked_libs)
-    for symlinked_libs in symlinked_libs.to_list():
-        setup_cmd += [_create_setup_cmd(symlinked_libs, deps_dir)]
+    setup_cmd += [
+        _create_setup_cmd(lib, deps_dir)
+        for lib in depset(transitive = symlinked_libs).to_list()
+    ]
 
     return struct(
         libs = depset(libs),
