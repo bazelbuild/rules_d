@@ -254,7 +254,7 @@ def _d_library_impl(ctx):
         files = depset([d_lib]),
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(depinfo.d_srcs),
-        transitive_libs = depinfo.transitive_libs,
+        transitive_libs = depset(transitive = [depinfo.libs, depinfo.transitive_libs]),
         link_flags = depinfo.link_flags,
         versions = ctx.attr.versions,
         imports = ctx.attr.imports,
@@ -360,6 +360,7 @@ def _d_source_library_impl(ctx):
     """Implementation of the d_source_library rule."""
     transitive_d_srcs = []
     transitive_libs = []
+    transitive_transitive_libs = []
     transitive_imports = depset()
     transitive_linkopts = depset()
     transitive_versions = depset()
@@ -370,6 +371,7 @@ def _d_source_library_impl(ctx):
             transitive_imports = depset(dep.imports, transitive = [transitive_imports])
             transitive_linkopts = depset(dep.linkopts, transitive = [transitive_linkopts])
             transitive_versions = depset(dep.versions, transitive = [transitive_versions])
+            transitive_transitive_libs.append(dep.transitive_libs)
 
         elif CcInfo in dep:
             # Dependency is a cc_library target.
@@ -384,7 +386,7 @@ def _d_source_library_impl(ctx):
     return struct(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(transitive = transitive_d_srcs, order = "postorder"),
-        transitive_libs = depset(transitive_libs),
+        transitive_libs = depset(transitive_libs, transitive = transitive_transitive_libs),
         imports = ctx.attr.imports + transitive_imports.to_list(),
         linkopts = ctx.attr.linkopts + transitive_linkopts.to_list(),
         versions = ctx.attr.versions + transitive_versions.to_list(),
