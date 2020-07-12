@@ -15,11 +15,17 @@ config_setting(
     values = {"host_cpu": "k8"},
 )
 
+config_setting(
+    name = "x64_windows",
+    values = {"host_cpu": "x64_windows"},
+)
+
 filegroup(
     name = "dmd",
     srcs = select({
         ":darwin": ["@dmd_darwin_x86_64//:dmd"],
         ":k8": ["@dmd_linux_x86_64//:dmd"],
+        ":x64_windows": ["@dmd_windows_x86_64//:dmd"],
     }),
 )
 
@@ -28,6 +34,7 @@ filegroup(
     srcs = select({
         ":darwin": ["@dmd_darwin_x86_64//:libphobos2"],
         ":k8": ["@dmd_linux_x86_64//:libphobos2"],
+        ":x64_windows": ["@dmd_windows_x86_64//:libphobos2"],
     }),
 )
 
@@ -36,6 +43,7 @@ filegroup(
     srcs = select({
         ":darwin": ["@dmd_darwin_x86_64//:phobos-src"],
         ":k8": ["@dmd_linux_x86_64//:phobos-src"],
+        ":x64_windows": ["@dmd_windows_x86_64//:phobos-src"],
     }),
 )
 
@@ -44,5 +52,6 @@ filegroup(
     srcs = select({
         ":darwin": ["@dmd_darwin_x86_64//:druntime-import-src"],
         ":k8": ["@dmd_linux_x86_64//:druntime-import-src"],
+        ":x64_windows": ["@dmd_windows_x86_64//:druntime-import-src"],
     }),
 )

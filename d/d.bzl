@@ -16,8 +16,12 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-def a_filetype(files):
-    return [f for f in files if f.basename.endswith(".a")]
+def _is_windows(ctx):
+    return ctx.configuration.host_path_separator == ';'
+
+def a_filetype(ctx, files):
+    lib_suffix = ".lib" if _is_windows(ctx) else ".a"
+    return [f for f in files if f.basename.endswith(lib_suffix)]
 
 D_FILETYPE = [".d", ".di"]
 
@@ -49,7 +53,7 @@ def _d_toolchain(ctx):
     d_compiler_path = ctx.file._d_compiler.path
     return struct(
         d_compiler_path = d_compiler_path,
-        link_flags = ["-L-L" + ctx.files._d_stdlib[0].dirname],
+        link_flags = [("-L/LIBPATH:" if _is_windows(ctx) else "-L-L") + ctx.files._d_stdlib[0].dirname],
         import_flags = [
             "-I" + _files_directory(ctx.files._d_stdlib_src),
             "-I" + _files_directory(ctx.files._d_runtime_import_src),
@@ -64,6 +68,7 @@ def _build_compile_arglist(ctx, srcs, out, depinfo, extra_flags = []):
     """Returns a list of strings constituting the D compile command arguments."""
     toolchain = _d_toolchain(ctx)
     return (
+        (["-m64"] if _is_windows(ctx) else []) +
         extra_flags + [
             "-of" + out.path,
             "-I.",
@@ -84,6 +89,10 @@ def _build_link_arglist(ctx, objs, out, depinfo):
     """Returns a list of strings constituting the D link command arguments."""
     toolchain = _d_toolchain(ctx)
     return (
+        (["-m64",
+          "-L/DEFAULTLIB:user32",
+          "-L/NODEFAULTLIB:libcmt",
+          "-L/DEFAULTLIB:msvcrt",] if _is_windows(ctx) else []) +
         ["-of" + out.path] +
         toolchain.link_flags +
         [f.path for f in depset(transitive = [depinfo.libs, depinfo.transitive_libs]).to_list()] +
@@ -91,7 +100,7 @@ def _build_link_arglist(ctx, objs, out, depinfo):
         objs
     )
 
-def _setup_deps(deps, name, working_dir):
+def _setup_deps(ctx, deps, name, working_dir):
     """Sets up dependencies.
 
     Walks through dependencies and constructs the commands and flags needed
@@ -144,7 +153,7 @@ def _setup_deps(deps, name, working_dir):
 
         elif CcInfo in dep:
             # The dependency is a cc_library
-            native_libs = a_filetype(_get_libs_for_static_executable(dep))
+            native_libs = a_filetype(ctx, _get_libs_for_static_executable(dep))
             libs.extend(native_libs)
             transitive_libs.append(depset(native_libs))
 
@@ -164,10 +173,10 @@ def _setup_deps(deps, name, working_dir):
 
 def _d_library_impl(ctx):
     """Implementation of the d_library rule."""
-    d_lib = ctx.outputs.d_lib
+    d_lib = ctx.actions.declare_file((ctx.label.name + ".lib") if _is_windows(ctx) else ("lib" + ctx.label.name + ".a"))
 
     # Dependencies
-    depinfo = _setup_deps(ctx.attr.deps, ctx.label.name, d_lib.dirname)
+    depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_lib.dirname)
 
     # Build compile command.
     compile_args = _build_compile_arglist(
@@ -215,9 +224,9 @@ def _d_library_impl(ctx):
 
 def _d_binary_impl_common(ctx, extra_flags = []):
     """Common implementation for rules that build a D binary."""
-    d_bin = ctx.outputs.executable
-    d_obj = ctx.actions.declare_file(d_bin.basename + ".o")
-    depinfo = _setup_deps(ctx.attr.deps, ctx.label.name, d_bin.dirname)
+    d_bin = ctx.actions.declare_file(ctx.label.name + ".exe" if _is_windows(ctx) else ctx.label.name)
+    d_obj = ctx.actions.declare_file(ctx.label.name + (".obj" if _is_windows(ctx) else ".o"))
+    depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_bin.dirname)
 
     # Build compile command
     compile_args = _build_compile_arglist(
@@ -277,6 +286,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(depinfo.d_srcs),
         imports = ctx.attr.imports,
+        executable = d_bin,
     )
 
 def _d_binary_impl(ctx):
@@ -329,7 +339,7 @@ def _d_source_library_impl(ctx):
 
         elif CcInfo in dep:
             # Dependency is a cc_library target.
-            native_libs = a_filetype(_get_libs_for_static_executable(dep))
+            native_libs = a_filetype(ctx, _get_libs_for_static_executable(dep))
             transitive_libs.extend(native_libs)
 
         else:
@@ -439,9 +449,6 @@ _d_compile_attrs = {
 d_library = rule(
     _d_library_impl,
     attrs = dict(_d_common_attrs.items() + _d_compile_attrs.items()),
-    outputs = {
-        "d_lib": "lib%{name}.a",
-    },
 )
 
 d_source_library = rule(
@@ -487,11 +494,17 @@ config_setting(
     values = {"host_cpu": "k8"},
 )
 
+config_setting(
+    name = "x64_windows",
+    values = {"host_cpu": "x64_windows"},
+)
+
 filegroup(
     name = "dmd",
     srcs = select({
         ":darwin": ["dmd2/osx/bin/dmd"],
         ":k8": ["dmd2/linux/bin64/dmd"],
+        ":x64_windows": ["dmd2/windows/bin/dmd.exe"],
     }),
 )
 
@@ -503,6 +516,7 @@ filegroup(
             "dmd2/linux/lib64/libphobos2.a",
             "dmd2/linux/lib64/libphobos2.so",
         ],
+        ":x64_windows": ["dmd2/windows/lib64/phobos64.lib"],
     }),
 )
 
@@ -536,5 +550,14 @@ def d_repositories():
             "http://downloads.dlang.org/releases/2020/dmd.2.090.0.osx.tar.xz",
         ],
         sha256 = "6f1120e1fabda1d9da39bbe9cdd1b0886003f435948c15b6457fc6dada7bd344",
+        build_file_content = DMD_BUILD_FILE,
+    )
+
+    http_archive(
+        name = "dmd_windows_x86_64",
+        urls = [
+            "http://downloads.dlang.org/releases/2020/dmd.2.090.0.windows.zip",
+        ],
+        sha256 = "a533630a6af683fbd165eb46dbb4bb0b53e5c48d7c64f744d3c34d29aca1dd22",
         build_file_content = DMD_BUILD_FILE,
     )
