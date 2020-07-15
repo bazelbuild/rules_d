@@ -504,7 +504,7 @@ filegroup(
     srcs = select({
         ":darwin": ["dmd2/osx/bin/dmd"],
         ":k8": ["dmd2/linux/bin64/dmd"],
-        ":x64_windows": ["dmd2/windows/bin/dmd.exe"],
+        ":x64_windows": ["dmd2/windows/bin64/dmd.exe"],
     }),
 )
 
@@ -538,26 +538,26 @@ def d_repositories():
     http_archive(
         name = "dmd_linux_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2020/dmd.2.090.0.linux.tar.xz",
+            "http://downloads.dlang.org/releases/2020/dmd.2.093.0.linux.tar.xz",
         ],
-        sha256 = "17b407da594ad8fe96e7a8937434aaec2511b8623f05c3c27a5bc48d63a468a5",
+        sha256 = "832e40e71fbc8b6994cdd5a93068b49c4bc37667e7e3fc2f4395949e77f7e815",
         build_file_content = DMD_BUILD_FILE,
     )
 
     http_archive(
         name = "dmd_darwin_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2020/dmd.2.090.0.osx.tar.xz",
+            "http://downloads.dlang.org/releases/2020/dmd.2.093.0.osx.tar.xz",
         ],
-        sha256 = "6f1120e1fabda1d9da39bbe9cdd1b0886003f435948c15b6457fc6dada7bd344",
+        sha256 = "97f3e60feb1d46409e477a16736482d6129eb683d1177d7f4f7eecc28b97177f",
         build_file_content = DMD_BUILD_FILE,
     )
 
     http_archive(
         name = "dmd_windows_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2020/dmd.2.090.0.windows.zip",
+            "http://downloads.dlang.org/releases/2020/dmd.2.093.0.windows.zip",
         ],
-        sha256 = "a533630a6af683fbd165eb46dbb4bb0b53e5c48d7c64f744d3c34d29aca1dd22",
+        sha256 = "06086a4e9f9300d6c1e3c2b16992f77e34386e8f78b2fabb1a3e7f4db0254bb5",
         build_file_content = DMD_BUILD_FILE,
     )
