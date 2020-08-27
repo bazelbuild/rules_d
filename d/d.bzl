@@ -96,7 +96,7 @@ def _build_link_arglist(ctx, objs, out, depinfo):
         ["-of" + out.path] +
         toolchain.link_flags +
         [f.path for f in depset(transitive = [depinfo.libs, depinfo.transitive_libs]).to_list()] +
-        depinfo.link_flags +
+        ["-L%s" % flag for flag in depset(depinfo.link_flags).to_list()] +
         objs
     )
 
@@ -130,7 +130,7 @@ def _setup_deps(ctx, deps, name, working_dir):
     transitive_d_srcs = []
     versions = []
     imports = []
-    link_flags = []
+    link_flags = list(ctx.attr.linkopts)
     for dep in deps:
         if hasattr(dep, "d_lib"):
             # The dependency is a d_library.
@@ -147,7 +147,7 @@ def _setup_deps(ctx, deps, name, working_dir):
             d_srcs += dep.d_srcs
             transitive_d_srcs.append(dep.transitive_d_srcs)
             transitive_libs.append(dep.transitive_libs)
-            link_flags += ["-L%s" % linkopt for linkopt in dep.linkopts]
+            link_flags.extend(dep.link_flags)
             imports += ["%s/%s" % (dep.label.package, im) for im in dep.imports]
             versions += dep.versions
 
@@ -156,6 +156,7 @@ def _setup_deps(ctx, deps, name, working_dir):
             native_libs = a_filetype(ctx, _get_libs_for_static_executable(dep))
             libs.extend(native_libs)
             transitive_libs.append(depset(native_libs))
+            link_flags.extend(dep[CcInfo].linking_context.user_link_flags)
 
         else:
             fail("D targets can only depend on d_library, d_source_library, or " +
@@ -168,7 +169,7 @@ def _setup_deps(ctx, deps, name, working_dir):
         transitive_d_srcs = depset(transitive = transitive_d_srcs),
         versions = versions,
         imports = depset(imports).to_list(),
-        link_flags = depset(link_flags).to_list(),
+        link_flags = link_flags,
     )
 
 def _d_library_impl(ctx):
@@ -326,14 +327,14 @@ def _d_source_library_impl(ctx):
     transitive_libs = []
     transitive_transitive_libs = []
     transitive_imports = depset()
-    transitive_linkopts = depset()
+    link_flags = list(ctx.attr.linkopts)
     transitive_versions = depset()
     for dep in ctx.attr.deps:
         if hasattr(dep, "d_srcs"):
             # Dependency is another d_source_library target.
             transitive_d_srcs.append(dep.d_srcs)
             transitive_imports = depset(dep.imports, transitive = [transitive_imports])
-            transitive_linkopts = depset(dep.linkopts, transitive = [transitive_linkopts])
+            link_flags.extend(dep.link_flags)
             transitive_versions = depset(dep.versions, transitive = [transitive_versions])
             transitive_transitive_libs.append(dep.transitive_libs)
 
@@ -341,6 +342,7 @@ def _d_source_library_impl(ctx):
             # Dependency is a cc_library target.
             native_libs = a_filetype(ctx, _get_libs_for_static_executable(dep))
             transitive_libs.extend(native_libs)
+            link_flags.extend(dep[CcInfo].linking_context.user_link_flags)
 
         else:
             fail("d_source_library can only depend on other " +
@@ -351,7 +353,7 @@ def _d_source_library_impl(ctx):
         transitive_d_srcs = depset(transitive = transitive_d_srcs, order = "postorder"),
         transitive_libs = depset(transitive_libs, transitive = transitive_transitive_libs),
         imports = ctx.attr.imports + transitive_imports.to_list(),
-        linkopts = ctx.attr.linkopts + transitive_linkopts.to_list(),
+        link_flags = link_flags,
         versions = ctx.attr.versions + transitive_versions.to_list(),
     )
 
