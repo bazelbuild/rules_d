@@ -3,8 +3,12 @@ platforms:
   ubuntu1604:
     build_targets:
     - "..."
+    # Disabled because ubuntu1604 does not have libcurl installed.
+    - "-//tests/linkopts/..."
     test_targets:
     - "..."
+    # Disabled because ubuntu1604 does not have libcurl installed.
+    - "-//tests/linkopts/..."
   ubuntu1804:
     build_targets:
     - "..."
