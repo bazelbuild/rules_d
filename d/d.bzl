@@ -17,7 +17,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def _is_windows(ctx):
-    return ctx.configuration.host_path_separator == ';'
+    return ctx.configuration.host_path_separator == ";"
 
 def a_filetype(ctx, files):
     lib_suffix = ".lib" if _is_windows(ctx) else ".a"
@@ -66,7 +66,7 @@ def _format_version(name):
 
 def _build_import(label, im):
     """Builds the import path under a specific label"""
-    import_path = ''
+    import_path = ""
     if label.workspace_root:
         import_path += label.workspace_root + "/"
     if label.package:
@@ -98,10 +98,12 @@ def _build_link_arglist(ctx, objs, out, depinfo):
     """Returns a list of strings constituting the D link command arguments."""
     toolchain = _d_toolchain(ctx)
     return (
-        (["-m64",
-          "-L/DEFAULTLIB:user32",
-          "-L/NODEFAULTLIB:libcmt",
-          "-L/DEFAULTLIB:msvcrt",] if _is_windows(ctx) else []) +
+        ([
+            "-m64",
+            "-L/DEFAULTLIB:user32",
+            "-L/NODEFAULTLIB:libcmt",
+            "-L/DEFAULTLIB:msvcrt",
+        ] if _is_windows(ctx) else []) +
         ["-of" + out.path] +
         toolchain.link_flags +
         [f.path for f in depset(transitive = [depinfo.libs, depinfo.transitive_libs]).to_list()] +
