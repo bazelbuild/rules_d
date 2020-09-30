@@ -15,3 +15,10 @@ platforms:
     - "..."
     test_targets:
     - "..."
+  windows:
+    build_targets:
+    - "..."
+    test_targets:
+    - "..."
+    # Disabled because sh_test needs --enable_runfiles.
+    - "-//tests/simple_as_binary/..."
