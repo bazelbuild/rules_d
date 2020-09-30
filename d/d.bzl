@@ -64,14 +64,14 @@ def _format_version(name):
     """Formats the string name to be used in a --version flag."""
     return name.replace("-", "_")
 
-def _build_import(ctx, label, import)
+def _build_import(ctx, label, im)
     """Builds the import paths for a specific label"""
     import_path = ''
     if label.workspace_root:
         import_path += label.workspace_root + "/"
     if label.package:
         import_path += label.package + "/"
-    import_path += import
+    import_path += im
     return import_path
 
 def _build_compile_arglist(ctx, out, depinfo, extra_flags = []):
