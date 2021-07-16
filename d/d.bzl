@@ -60,6 +60,26 @@ def _d_toolchain(ctx):
         ],
     )
 
+COMPILATION_MODE_FLAGS_POSIX = {
+    "fastbuild": ["-g"],
+    "dbg": ["-debug", "-g"],
+    "opt": ["-checkaction=halt", "-boundscheck=safeonly", "-O"],
+}
+
+COMPILATION_MODE_FLAGS_WINDOWS = {
+    "fastbuild": ["-g", "-m64", "-mscrtlib=msvcrt"],
+    "dbg": ["-debug", "-g", "-m64", "-mscrtlib=msvcrtd"],
+    "opt": ["-checkaction=halt", "-boundscheck=safeonly", "-O",
+        "-m64", "-mscrtlib=msvcrt"],
+}
+
+def _compilation_mode_flags(ctx):
+    """Returns a list of flags based on the compilation_mode."""
+    if _is_windows(ctx):
+        return COMPILATION_MODE_FLAGS_WINDOWS[ctx.var["COMPILATION_MODE"]]
+    else:
+        return COMPILATION_MODE_FLAGS_POSIX[ctx.var["COMPILATION_MODE"]]
+
 def _format_version(name):
     """Formats the string name to be used in a --version flag."""
     return name.replace("-", "_")
@@ -78,13 +98,11 @@ def _build_compile_arglist(ctx, out, depinfo, extra_flags = []):
     """Returns a list of strings constituting the D compile command arguments."""
     toolchain = _d_toolchain(ctx)
     return (
-        (["-m64"] if _is_windows(ctx) else []) +
+        _compilation_mode_flags(ctx) +
         extra_flags + [
             "-of" + out.path,
             "-I.",
-            "-debug",
             "-w",
-            "-g",
         ] +
         ["-I%s" % _build_import(ctx.label, im) for im in ctx.attr.imports] +
         ["-I%s" % im for im in depinfo.imports] +
@@ -98,12 +116,7 @@ def _build_link_arglist(ctx, objs, out, depinfo):
     """Returns a list of strings constituting the D link command arguments."""
     toolchain = _d_toolchain(ctx)
     return (
-        ([
-            "-m64",
-            "-L/DEFAULTLIB:user32",
-            "-L/NODEFAULTLIB:libcmt",
-            "-L/DEFAULTLIB:msvcrt",
-        ] if _is_windows(ctx) else []) +
+        _compilation_mode_flags(ctx) +
         ["-of" + out.path] +
         toolchain.link_flags +
         [f.path for f in depset(transitive = [depinfo.libs, depinfo.transitive_libs]).to_list()] +
