@@ -69,8 +69,13 @@ COMPILATION_MODE_FLAGS_POSIX = {
 COMPILATION_MODE_FLAGS_WINDOWS = {
     "fastbuild": ["-g", "-m64", "-mscrtlib=msvcrt"],
     "dbg": ["-debug", "-g", "-m64", "-mscrtlib=msvcrtd"],
-    "opt": ["-checkaction=halt", "-boundscheck=safeonly", "-O",
-        "-m64", "-mscrtlib=msvcrt"],
+    "opt": [
+        "-checkaction=halt",
+        "-boundscheck=safeonly",
+        "-O",
+        "-m64",
+        "-mscrtlib=msvcrt",
+    ],
 }
 
 def _compilation_mode_flags(ctx):
