@@ -573,26 +573,26 @@ def d_repositories():
     http_archive(
         name = "dmd_linux_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2021/dmd.2.097.1.linux.tar.xz",
+            "https://downloads.dlang.org/releases/2022/dmd.2.101.1.linux.tar.xz",
         ],
-        sha256 = "030fd1bc3b7308dadcf08edc1529d4a2e46496d97ee92ed532b246a0f55745e6",
+        sha256 = "58333e57ed3812077dc2f8cc8759998b3b59c9ea3dbe01571eab4b2944a84bfe",
         build_file_content = DMD_BUILD_FILE,
     )
 
     http_archive(
         name = "dmd_darwin_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2021/dmd.2.097.1.osx.tar.xz",
+            "https://downloads.dlang.org/releases/2022/dmd.2.101.1.osx.tar.xz",
         ],
-        sha256 = "383a5524266417bcdd3126da947be7caebd4730f789021e9ec26d869c8448f6a",
+        sha256 = "f925f971b82c1e3083d4181f35566ea024ebeea76c3d45500316408560e9dd04",
         build_file_content = DMD_BUILD_FILE,
     )
 
     http_archive(
         name = "dmd_windows_x86_64",
         urls = [
-            "http://downloads.dlang.org/releases/2021/dmd.2.097.1.windows.zip",
+            "http://downloads.dlang.org/releases/2022/dmd.2.101.1.windows.zip",
         ],
-        sha256 = "63a00e624bf23ab676c543890a93b5325d6ef6b336dee2a2f739f2bbcef7ef1f",
+        sha256 = "17cb16417aeae788257a2cbc795bb0801aa917e59ebf9baed6015ffc613086ea",
         build_file_content = DMD_BUILD_FILE,
     )
