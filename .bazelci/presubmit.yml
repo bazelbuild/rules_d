@@ -18,12 +18,12 @@ platforms:
   windows:
     build_flags:
     - "--action_env=PROGRAMFILES(X86)"
-    - "--nodistinct_host_configuration"
+    - "--host_action_env=PROGRAMFILES(X86)"
     build_targets:
     - "..."
     test_flags:
     - "--action_env=PROGRAMFILES(X86)"
-    - "--nodistinct_host_configuration"
+    - "--host_action_env=PROGRAMFILES(X86)"
     test_targets:
     - "..."
     # Disabled because sh_test needs --enable_runfiles.

@@ -468,7 +468,7 @@ _d_compile_attrs = {
         default = Label("//d:dmd"),
         executable = True,
         allow_single_file = True,
-        cfg = "host",
+        cfg = "exec",
     ),
     "_d_runtime_import_src": attr.label(
         default = Label("//d:druntime-import-src"),
