@@ -14,7 +14,7 @@ sh_test(
 genrule(
     name = "run_simple",
     outs = ["run_simple.sh"],
-    executable = True,
     cmd = "echo $(rootpath :simple) > $@",
+    executable = True,
     tools = [":simple"],
 )

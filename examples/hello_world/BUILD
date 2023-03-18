@@ -1,6 +1,6 @@
-package(default_visibility = ["//visibility:public"])
-
 load("//d:d.bzl", "d_binary", "d_docs")
+
+package(default_visibility = ["//visibility:public"])
 
 d_binary(
     name = "hello_world",
