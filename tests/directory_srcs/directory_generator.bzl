@@ -1,3 +1,5 @@
+"""Generate a directory containing source files."""
+
 def directory_generator_impl(ctx):
     # Declare a directory rather than a file and copy all sources
     out_dir = ctx.actions.declare_directory(ctx.label.name)

@@ -27,6 +27,19 @@ D_FILETYPE = [".d", ".di"]
 
 ZIP_PATH = "/usr/bin/zip"
 
+DInfo = provider(
+    "D compile provider.",
+    fields = {
+        "d_srcs": "depset of source files.",
+        "transitive_d_srcs": "depset of transitive source files.",
+        "libs": "depset of link libraries",
+        "transitive_libs": "depset of transitive link libraries.",
+        "link_flags": "list of linking flags",
+        "versions": "list of version identifiers.",
+        "imports": "list of imports.",
+    },
+)
+
 def _files_directory(files):
     """Returns the shortest parent directory of a list of files."""
     dir = files[0].dirname
@@ -188,7 +201,7 @@ def _setup_deps(ctx):
             fail("D targets can only depend on d_library, d_source_library, or " +
                  "cc_library targets.", "deps")
 
-    return struct(
+    return DInfo(
         libs = depset(libs),
         transitive_libs = depset(transitive = transitive_libs),
         d_srcs = depset(d_srcs).to_list(),
@@ -244,15 +257,13 @@ def _d_library_impl(ctx):
         progress_message = "Compiling D library " + ctx.label.name,
     )
 
-    return struct(
-        files = depset([d_lib]),
+    return DInfo(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(depinfo.d_srcs),
         transitive_libs = depset(transitive = [depinfo.libs, depinfo.transitive_libs]),
         link_flags = depinfo.link_flags,
         versions = ctx.attr.versions,
         imports = ctx.attr.imports,
-        d_lib = d_lib,
     )
 
 def _d_binary_impl_common(ctx, extra_flags = []):
@@ -321,7 +332,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         progress_message = "Linking D binary " + ctx.label.name,
     )
 
-    return struct(
+    return DInfo(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(depinfo.d_srcs),
         imports = ctx.attr.imports,
@@ -384,12 +395,12 @@ def _d_source_library_impl(ctx):
             fail("d_source_library can only depend on other " +
                  "d_source_library or cc_library targets.", "deps")
 
-    return struct(
+    return DInfo(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(transitive = transitive_d_srcs, order = "postorder"),
         transitive_libs = depset(transitive_libs, transitive = transitive_transitive_libs),
         imports = depset(ctx.attr.imports, transitive = transitive_imports).to_list(),
-        linkopts = depset(ctx.attr.linkopts, transitive = transitive_linkopts).to_list(),
+        link_flags = depset(ctx.attr.linkopts, transitive = transitive_linkopts).to_list(),
         versions = depset(ctx.attr.versions, transitive = transitive_versions).to_list(),
     )
 
