@@ -1,6 +1,6 @@
-package(default_visibility = ["//visibility:public"])
-
 load("@io_bazel_rules_d//d:d.bzl", "d_source_library")
+
+package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "simple_c_library",

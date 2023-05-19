@@ -1,3 +1,5 @@
+"""Generate a directory containing source files."""
+
 def directory_generator_impl(ctx):
     # Declare a directory rather than a file and copy all sources
     out_dir = ctx.actions.declare_directory(ctx.label.name)
@@ -5,8 +7,8 @@ def directory_generator_impl(ctx):
         inputs = ctx.files.srcs,
         outputs = [out_dir],
         command = "cp {} '{}'".format(
-            ' '.join(["'" + f.path + "'" for f in ctx.files.srcs]),
-            out_dir.path
+            " ".join(["'" + f.path + "'" for f in ctx.files.srcs]),
+            out_dir.path,
         ),
     )
 
@@ -14,13 +16,12 @@ def directory_generator_impl(ctx):
     return [
         DefaultInfo(
             files = depset([out_dir]),
-        )
+        ),
     ]
-
 
 directory_generator = rule(
     implementation = directory_generator_impl,
     attrs = {
-        "srcs": attr.label_list(allow_files = True)
+        "srcs": attr.label_list(allow_files = True),
     },
 )

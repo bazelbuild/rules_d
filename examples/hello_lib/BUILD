@@ -1,6 +1,6 @@
-package(default_visibility = ["//visibility:public"])
-
 load("//d:d.bzl", "d_docs", "d_library", "d_source_library", "d_test")
+
+package(default_visibility = ["//visibility:public"])
 
 d_library(
     name = "greeter",

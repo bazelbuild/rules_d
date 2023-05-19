@@ -27,6 +27,19 @@ D_FILETYPE = [".d", ".di"]
 
 ZIP_PATH = "/usr/bin/zip"
 
+DInfo = provider(
+    "D compile provider.",
+    fields = {
+        "d_srcs": "depset of source files.",
+        "transitive_d_srcs": "depset of transitive source files.",
+        "libs": "depset of link libraries",
+        "transitive_libs": "depset of transitive link libraries.",
+        "link_flags": "list of linking flags",
+        "versions": "list of version identifiers.",
+        "imports": "list of imports.",
+    },
+)
+
 def _files_directory(files):
     """Returns the shortest parent directory of a list of files."""
     dir = files[0].dirname
@@ -69,8 +82,13 @@ COMPILATION_MODE_FLAGS_POSIX = {
 COMPILATION_MODE_FLAGS_WINDOWS = {
     "fastbuild": ["-g", "-m64", "-mscrtlib=msvcrt"],
     "dbg": ["-debug", "-g", "-m64", "-mscrtlib=msvcrtd"],
-    "opt": ["-checkaction=halt", "-boundscheck=safeonly", "-O",
-        "-m64", "-mscrtlib=msvcrt"],
+    "opt": [
+        "-checkaction=halt",
+        "-boundscheck=safeonly",
+        "-O",
+        "-m64",
+        "-mscrtlib=msvcrt",
+    ],
 }
 
 def _compilation_mode_flags(ctx):
@@ -124,16 +142,14 @@ def _build_link_arglist(ctx, objs, out, depinfo):
         objs
     )
 
-def _setup_deps(ctx, deps, name, working_dir):
+def _setup_deps(ctx):
     """Sets up dependencies.
 
     Walks through dependencies and constructs the commands and flags needed
     for linking the necessary dependencies.
 
     Args:
-      deps: List of deps labels from ctx.attr.deps.
-      name: Name of the current target.
-      working_dir: The output directory of the current target's output.
+      ctx: The rule context.
 
     Returns:
       Returns a struct containing the following fields:
@@ -155,7 +171,7 @@ def _setup_deps(ctx, deps, name, working_dir):
     versions = []
     imports = []
     link_flags = []
-    for dep in deps:
+    for dep in ctx.attr.deps:
         if hasattr(dep, "d_lib"):
             # The dependency is a d_library.
             libs.append(dep.d_lib)
@@ -185,7 +201,7 @@ def _setup_deps(ctx, deps, name, working_dir):
             fail("D targets can only depend on d_library, d_source_library, or " +
                  "cc_library targets.", "deps")
 
-    return struct(
+    return DInfo(
         libs = depset(libs),
         transitive_libs = depset(transitive = transitive_libs),
         d_srcs = depset(d_srcs).to_list(),
@@ -200,7 +216,7 @@ def _d_library_impl(ctx):
     d_lib = ctx.actions.declare_file((ctx.label.name + ".lib") if _is_windows(ctx) else ("lib" + ctx.label.name + ".a"))
 
     # Dependencies
-    depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_lib.dirname)
+    depinfo = _setup_deps(ctx)
 
     # Build compile command.
     compile_args = _build_compile_arglist(
@@ -241,22 +257,20 @@ def _d_library_impl(ctx):
         progress_message = "Compiling D library " + ctx.label.name,
     )
 
-    return struct(
-        files = depset([d_lib]),
+    return DInfo(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(depinfo.d_srcs),
         transitive_libs = depset(transitive = [depinfo.libs, depinfo.transitive_libs]),
         link_flags = depinfo.link_flags,
         versions = ctx.attr.versions,
         imports = ctx.attr.imports,
-        d_lib = d_lib,
     )
 
 def _d_binary_impl_common(ctx, extra_flags = []):
     """Common implementation for rules that build a D binary."""
-    d_bin = ctx.actions.declare_file(ctx.label.name + ".exe" if _is_windows(ctx) else ctx.label.name)
+    d_bin = ctx.actions.declare_file(ctx.label.name + (".exe" if _is_windows(ctx) else ""))
     d_obj = ctx.actions.declare_file(ctx.label.name + (".obj" if _is_windows(ctx) else ".o"))
-    depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_bin.dirname)
+    depinfo = _setup_deps(ctx)
 
     # Build compile command
     compile_args = _build_compile_arglist(
@@ -318,10 +332,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         progress_message = "Linking D binary " + ctx.label.name,
     )
 
-    return struct(
-        d_srcs = ctx.files.srcs,
-        transitive_d_srcs = depset(depinfo.d_srcs),
-        imports = ctx.attr.imports,
+    return DefaultInfo(
         executable = d_bin,
     )
 
@@ -334,8 +345,8 @@ def _d_test_impl(ctx):
     return _d_binary_impl_common(ctx, extra_flags = ["-unittest"])
 
 def _get_libs_for_static_executable(dep):
-    """
-    Finds the libraries used for linking an executable statically.
+    """Finds the libraries used for linking an executable statically.
+
     This replaces the old API dep.cc.libs
     Args:
       dep: Target
@@ -360,34 +371,34 @@ def _d_source_library_impl(ctx):
     transitive_d_srcs = []
     transitive_libs = []
     transitive_transitive_libs = []
-    transitive_imports = depset()
-    transitive_linkopts = depset()
-    transitive_versions = depset()
+    transitive_imports = []
+    transitive_linkopts = []
+    transitive_versions = []
     for dep in ctx.attr.deps:
         if hasattr(dep, "d_srcs"):
             # Dependency is another d_source_library target.
-            transitive_d_srcs.append(dep.d_srcs)
-            transitive_imports = depset(dep.imports, transitive = [transitive_imports])
-            transitive_linkopts = depset(dep.linkopts, transitive = [transitive_linkopts])
-            transitive_versions = depset(dep.versions, transitive = [transitive_versions])
-            transitive_transitive_libs.append(dep.transitive_libs)
+            transitive_d_srcs += dep.d_srcs
+            transitive_imports += dep.imports
+            transitive_linkopts += dep.linkopts
+            transitive_versions += dep.versions
+            transitive_transitive_libs += dep.transitive_libs
 
         elif CcInfo in dep:
             # Dependency is a cc_library target.
             native_libs = a_filetype(ctx, _get_libs_for_static_executable(dep))
-            transitive_libs.extend(native_libs)
+            transitive_libs += native_libs
 
         else:
             fail("d_source_library can only depend on other " +
                  "d_source_library or cc_library targets.", "deps")
 
-    return struct(
+    return DInfo(
         d_srcs = ctx.files.srcs,
         transitive_d_srcs = depset(transitive = transitive_d_srcs, order = "postorder"),
         transitive_libs = depset(transitive_libs, transitive = transitive_transitive_libs),
-        imports = ctx.attr.imports + transitive_imports.to_list(),
-        linkopts = ctx.attr.linkopts + transitive_linkopts.to_list(),
-        versions = ctx.attr.versions + transitive_versions.to_list(),
+        imports = depset(ctx.attr.imports, transitive = transitive_imports).to_list(),
+        link_flags = depset(ctx.attr.linkopts, transitive = transitive_linkopts).to_list(),
+        versions = depset(ctx.attr.versions, transitive = transitive_versions).to_list(),
     )
 
 # TODO(dzc): Use ddox for generating HTML documentation.
