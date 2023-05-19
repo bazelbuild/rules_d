@@ -268,7 +268,7 @@ def _d_library_impl(ctx):
 
 def _d_binary_impl_common(ctx, extra_flags = []):
     """Common implementation for rules that build a D binary."""
-    d_bin = ctx.actions.declare_file(ctx.label.name + ".exe" if _is_windows(ctx) else ctx.label.name)
+    d_bin = ctx.actions.declare_file(ctx.label.name + (".exe" if _is_windows(ctx) else ""))
     d_obj = ctx.actions.declare_file(ctx.label.name + (".obj" if _is_windows(ctx) else ".o"))
     depinfo = _setup_deps(ctx)
 
@@ -332,10 +332,7 @@ def _d_binary_impl_common(ctx, extra_flags = []):
         progress_message = "Linking D binary " + ctx.label.name,
     )
 
-    return DInfo(
-        d_srcs = ctx.files.srcs,
-        transitive_d_srcs = depset(depinfo.d_srcs),
-        imports = ctx.attr.imports,
+    return DefaultInfo(
         executable = d_bin,
     )
 
