@@ -14,7 +14,7 @@
 
 """D rules for Bazel."""
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("//d:toolchain.bzl", "D_TOOLCHAIN")
 
 def _is_windows(ctx):
     return ctx.configuration.host_path_separator == ";"
@@ -35,31 +35,6 @@ def _files_directory(files):
             dir = f.dirname
     return dir
 
-def _d_toolchain(ctx):
-    """Returns a struct containing info about the D toolchain.
-
-    Args:
-      ctx: The ctx object.
-
-    Return:
-      Struct containing the following fields:
-        d_compiler_path: The path to the D compiler.
-        link_flags: Linker (-L) flags for adding the standard library to the
-            library search paths.
-        import_flags: import (-I) flags for adding the standard library sources
-            to the import paths.
-    """
-
-    d_compiler_path = ctx.file._d_compiler.path
-    return struct(
-        d_compiler_path = d_compiler_path,
-        link_flags = [("-L/LIBPATH:" if _is_windows(ctx) else "-L-L") + ctx.files._d_stdlib[0].dirname],
-        import_flags = [
-            "-I" + _files_directory(ctx.files._d_stdlib_src),
-            "-I" + _files_directory(ctx.files._d_runtime_import_src),
-        ],
-    )
-
 COMPILATION_MODE_FLAGS_POSIX = {
     "fastbuild": ["-g"],
     "dbg": ["-debug", "-g"],
@@ -69,8 +44,13 @@ COMPILATION_MODE_FLAGS_POSIX = {
 COMPILATION_MODE_FLAGS_WINDOWS = {
     "fastbuild": ["-g", "-m64", "-mscrtlib=msvcrt"],
     "dbg": ["-debug", "-g", "-m64", "-mscrtlib=msvcrtd"],
-    "opt": ["-checkaction=halt", "-boundscheck=safeonly", "-O",
-        "-m64", "-mscrtlib=msvcrt"],
+    "opt": [
+        "-checkaction=halt",
+        "-boundscheck=safeonly",
+        "-O",
+        "-m64",
+        "-mscrtlib=msvcrt",
+    ],
 }
 
 def _compilation_mode_flags(ctx):
@@ -96,7 +76,9 @@ def _build_import(label, im):
 
 def _build_compile_arglist(ctx, out, depinfo, extra_flags = []):
     """Returns a list of strings constituting the D compile command arguments."""
-    toolchain = _d_toolchain(ctx)
+    toolchain = ctx.toolchains[D_TOOLCHAIN]
+    version_flag = toolchain.version_flag
+
     return (
         _compilation_mode_flags(ctx) +
         extra_flags + [
@@ -106,19 +88,17 @@ def _build_compile_arglist(ctx, out, depinfo, extra_flags = []):
         ] +
         ["-I%s" % _build_import(ctx.label, im) for im in ctx.attr.imports] +
         ["-I%s" % im for im in depinfo.imports] +
-        toolchain.import_flags +
-        ["-version=Have_%s" % _format_version(ctx.label.name)] +
-        ["-version=%s" % v for v in ctx.attr.versions] +
-        ["-version=%s" % v for v in depinfo.versions]
+        # toolchain.import_flags +
+        [version_flag + "=Have_%s" % _format_version(ctx.label.name)] +
+        [version_flag + "=%s" % v for v in ctx.attr.versions] +
+        [version_flag + "=%s" % v for v in depinfo.versions]
     )
 
 def _build_link_arglist(ctx, objs, out, depinfo):
     """Returns a list of strings constituting the D link command arguments."""
-    toolchain = _d_toolchain(ctx)
     return (
         _compilation_mode_flags(ctx) +
         ["-of" + out.path] +
-        toolchain.link_flags +
         [f.path for f in depset(transitive = [depinfo.libs, depinfo.transitive_libs]).to_list()] +
         depinfo.link_flags +
         objs
@@ -197,9 +177,11 @@ def _setup_deps(ctx, deps, name, working_dir):
 
 def _d_library_impl(ctx):
     """Implementation of the d_library rule."""
+    toolchain = ctx.toolchains[D_TOOLCHAIN]
     d_lib = ctx.actions.declare_file((ctx.label.name + ".lib") if _is_windows(ctx) else ("lib" + ctx.label.name + ".a"))
 
     # Dependencies
+    deps = ctx.attr.deps + [toolchain.libphobos] + ([toolchain.druntime] if toolchain.druntime != None else [])
     depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_lib.dirname)
 
     # Build compile command.
@@ -217,25 +199,28 @@ def _d_library_impl(ctx):
     args.add_all(compile_args)
     args.add_all(ctx.files.srcs)
 
+    # TODO: Should they be in transitive?
     compile_inputs = depset(
         ctx.files.srcs +
-        depinfo.d_srcs +
-        ctx.files._d_stdlib +
-        ctx.files._d_stdlib_src +
-        ctx.files._d_runtime_import_src,
+        depinfo.d_srcs,
         transitive = [
             depinfo.transitive_d_srcs,
             depinfo.libs,
             depinfo.transitive_libs,
+            toolchain.libphobos.files,
+            toolchain.libphobos_src.files,
+            toolchain.druntime_src.files,
         ],
     )
 
+    d_compiler = toolchain.d_compiler.files.to_list()[0]
+
     ctx.actions.run(
         inputs = compile_inputs,
-        tools = [ctx.file._d_compiler],
+        tools = [d_compiler],
         outputs = [d_lib],
         mnemonic = "Dcompile",
-        executable = ctx.file._d_compiler.path,
+        executable = d_compiler,
         arguments = [args],
         use_default_shell_env = True,
         progress_message = "Compiling D library " + ctx.label.name,
@@ -254,9 +239,13 @@ def _d_library_impl(ctx):
 
 def _d_binary_impl_common(ctx, extra_flags = []):
     """Common implementation for rules that build a D binary."""
+    toolchain = ctx.toolchains[D_TOOLCHAIN]
     d_bin = ctx.actions.declare_file(ctx.label.name + ".exe" if _is_windows(ctx) else ctx.label.name)
     d_obj = ctx.actions.declare_file(ctx.label.name + (".obj" if _is_windows(ctx) else ".o"))
-    depinfo = _setup_deps(ctx, ctx.attr.deps, ctx.label.name, d_bin.dirname)
+
+    # Dependencies
+    deps = ctx.attr.deps + [toolchain.libphobos] + ([toolchain.druntime] if toolchain.druntime != None else [])
+    depinfo = _setup_deps(ctx, deps, ctx.label.name, d_bin.dirname)
 
     # Build compile command
     compile_args = _build_compile_arglist(
@@ -273,22 +262,24 @@ def _d_binary_impl_common(ctx, extra_flags = []):
     args.add_all(compile_args)
     args.add_all(ctx.files.srcs)
 
-    toolchain_files = (
-        ctx.files._d_stdlib +
-        ctx.files._d_stdlib_src +
-        ctx.files._d_runtime_import_src
-    )
+    toolchain_files = [
+        toolchain.libphobos.files,
+        toolchain.libphobos_src.files,
+        toolchain.druntime_src.files,
+    ]
+
+    d_compiler = toolchain.d_compiler.files.to_list()[0]
 
     compile_inputs = depset(
-        ctx.files.srcs + depinfo.d_srcs + toolchain_files,
-        transitive = [depinfo.transitive_d_srcs],
+        ctx.files.srcs + depinfo.d_srcs,
+        transitive = [depinfo.transitive_d_srcs] + toolchain_files,
     )
     ctx.actions.run(
         inputs = compile_inputs,
-        tools = [ctx.file._d_compiler],
+        tools = [d_compiler],
         outputs = [d_obj],
         mnemonic = "Dcompile",
-        executable = ctx.file._d_compiler.path,
+        executable = d_compiler,
         arguments = [args],
         use_default_shell_env = True,
         progress_message = "Compiling D binary " + ctx.label.name,
@@ -303,16 +294,16 @@ def _d_binary_impl_common(ctx, extra_flags = []):
     )
 
     link_inputs = depset(
-        [d_obj] + toolchain_files,
-        transitive = [depinfo.libs, depinfo.transitive_libs],
+        [d_obj],
+        transitive = [depinfo.libs, depinfo.transitive_libs] + toolchain_files,
     )
 
     ctx.actions.run(
         inputs = link_inputs,
-        tools = [ctx.file._d_compiler],
+        tools = [d_compiler],
         outputs = [d_bin],
         mnemonic = "Dlink",
-        executable = ctx.file._d_compiler.path,
+        executable = d_compiler,
         arguments = link_args,
         use_default_shell_env = True,
         progress_message = "Linking D binary " + ctx.label.name,
@@ -411,14 +402,16 @@ def _d_docs_impl(ctx):
         imports = ctx.attr.dep.imports,
     )
 
+    toolchain = ctx.toolchains[D_TOOLCHAIN]
+    d_compiler = toolchain.d_compiler.files.to_list()[0]
+
     # Build D docs command
-    toolchain = _d_toolchain(ctx)
     doc_cmd = (
         [
             "set -e;",
             "rm -rf %s; mkdir -p %s;" % (docs_dir, docs_dir),
             "rm -rf %s; mkdir -p %s;" % (objs_dir, objs_dir),
-            toolchain.d_compiler_path,
+            d_compiler.path,
             "-c",
             "-D",
             "-Dd%s" % docs_dir,
@@ -426,7 +419,7 @@ def _d_docs_impl(ctx):
             "-I.",
         ] +
         ["-I%s" % _build_import(ctx.label, im) for im in target.imports] +
-        toolchain.import_flags +
+        # toolchain.import_flags +
         [src.path for src in target.srcs] +
         [
             "&&",
@@ -439,15 +432,16 @@ def _d_docs_impl(ctx):
         ]
     )
 
-    toolchain_files = (
-        ctx.files._d_stdlib +
-        ctx.files._d_stdlib_src +
-        ctx.files._d_runtime_import_src
-    )
-    ddoc_inputs = depset(target.srcs + toolchain_files, transitive = [target.transitive_srcs])
+    toolchain_files = [
+        toolchain.libphobos.files,
+        toolchain.libphobos_src.files,
+        toolchain.druntime_src.files,
+    ]
+
+    ddoc_inputs = depset(target.srcs, transitive = [target.transitive_srcs] + toolchain_files)
     ctx.actions.run_shell(
         inputs = ddoc_inputs,
-        tools = [ctx.file._d_compiler],
+        tools = [d_compiler],
         outputs = [d_docs_zip],
         mnemonic = "Ddoc",
         command = " ".join(doc_cmd),
@@ -463,45 +457,49 @@ _d_common_attrs = {
     "deps": attr.label_list(),
 }
 
-_d_compile_attrs = {
-    "_d_compiler": attr.label(
-        default = Label("//d:dmd"),
-        executable = True,
-        allow_single_file = True,
-        cfg = "exec",
-    ),
-    "_d_runtime_import_src": attr.label(
-        default = Label("//d:druntime-import-src"),
-    ),
-    "_d_stdlib": attr.label(
-        default = Label("//d:libphobos2"),
-    ),
-    "_d_stdlib_src": attr.label(
-        default = Label("//d:phobos-src"),
-    ),
-}
+# _d_compile_attrs = {
+#     "_d_compiler": attr.label(
+#         default = Label("//d:dmd"),
+#         executable = True,
+#         allow_single_file = True,
+#         cfg = "host",
+#     ),
+#     "_d_runtime_import_src": attr.label(
+#         default = Label("//d:druntime-import-src"),
+#     ),
+#     "_d_stdlib": attr.label(
+#         default = Label("//d:libphobos2"),
+#     ),
+#     "_d_stdlib_src": attr.label(
+#         default = Label("//d:phobos-src"),
+#     ),
+# }
 
 d_library = rule(
     _d_library_impl,
-    attrs = dict(_d_common_attrs.items() + _d_compile_attrs.items()),
+    attrs = dict(_d_common_attrs.items()),
+    toolchains = [D_TOOLCHAIN],
 )
 
 d_source_library = rule(
     _d_source_library_impl,
     attrs = _d_common_attrs,
+    toolchains = [D_TOOLCHAIN],
 )
 
 d_binary = rule(
     _d_binary_impl,
-    attrs = dict(_d_common_attrs.items() + _d_compile_attrs.items()),
+    attrs = dict(_d_common_attrs.items()),
     executable = True,
+    toolchains = [D_TOOLCHAIN],
 )
 
 d_test = rule(
     _d_test_impl,
-    attrs = dict(_d_common_attrs.items() + _d_compile_attrs.items()),
+    attrs = dict(_d_common_attrs.items()),
     executable = True,
     test = True,
+    toolchains = [D_TOOLCHAIN],
 )
 
 _d_docs_attrs = {
@@ -510,10 +508,11 @@ _d_docs_attrs = {
 
 d_docs = rule(
     _d_docs_impl,
-    attrs = dict(_d_docs_attrs.items() + _d_compile_attrs.items()),
+    attrs = dict(_d_docs_attrs.items()),
     outputs = {
         "d_docs": "%{name}-docs.zip",
     },
+    toolchains = [D_TOOLCHAIN],
 )
 
 DMD_BUILD_FILE = """

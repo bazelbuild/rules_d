@@ -36,8 +36,9 @@ http_archive(
     strip_prefix = "rules_d-bcf137e3c9381545ce54715632bc1d31c51ee4da",
 )
 
-load("@io_bazel_rules_d//d:d.bzl", "d_repositories")
-d_repositories()
+load("@io_bazel_rules_d//d:repositories.bzl", "rules_d_toolchains")
+rules_d_toolchains()
+# rules_d_toolchains(ctype = "ldc") # If you want to use LDC instead of DMD
 ```
 
 ## Roadmap
