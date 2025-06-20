@@ -7,6 +7,7 @@ common --enable_runfiles
 common --incompatible_disallow_empty_glob
 common --incompatible_strict_action_env
 common --lockfile_mode=off
+common --macos_minimum_os=13.0
 common --test_output=errors
 
 build --incompatible_strict_action_env
