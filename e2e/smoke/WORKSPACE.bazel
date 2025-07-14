@@ -8,9 +8,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "10a0d58f39a1a909e95e00e8ba0b5b1dc64d02997f741151953a2b3659f6e78c",
-    strip_prefix = "protobuf-29.0",
-    url = "https://github.com/protocolbuffers/protobuf/releases/download/v29.0/protobuf-29.0.tar.gz",
+    sha256 = "a191d2afdd75997ba59f62019425016703daed356a9d92f7425f4741439ae544",
+    strip_prefix = "protobuf-29.5",
+    url = "https://github.com/protocolbuffers/protobuf/releases/download/v29.5/protobuf-29.5.tar.gz",
 )
 
 load("@com_google_protobuf//bazel/private:proto_bazel_features.bzl", "proto_bazel_features")  # buildifier: disable=bzl-visibility
